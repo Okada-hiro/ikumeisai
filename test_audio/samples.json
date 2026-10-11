@@ -1,0 +1,23 @@
+[
+ {
+  "file": "sample1.wav",
+  "fleurs_id": "1548",
+  "source": "fleurs ja_jp dev/17017024958635163247.wav",
+  "duration_s": 10.02,
+  "reference": "何千マイルも離れた場所にいる相手に電話をかけると自動的に衛星を経由した通話になります。"
+ },
+ {
+  "file": "sample2.wav",
+  "fleurs_id": "1537",
+  "source": "fleurs ja_jp dev/4546695707574222036.wav",
+  "duration_s": 9.96,
+  "reference": "暗闇の中にピラミッドが見え、開演前には沈黙の中でピラミッドを見学できます。"
+ },
+ {
+  "file": "sample3.wav",
+  "fleurs_id": "1642",
+  "source": "fleurs ja_jp dev/6099935713845251756.wav",
+  "duration_s": 10.02,
+  "reference": "アメリカ帝国主義による戦争でフィリピン征服にかかった費用をフィリピン人が負担したのです。"
+ }
+]

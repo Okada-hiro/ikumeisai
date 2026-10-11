@@ -1,0 +1,5 @@
+outputs/
+test_audio/tts_test/
+__pycache__/
+*.pyc
+.venv/
