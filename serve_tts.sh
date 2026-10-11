@@ -2,7 +2,6 @@
 # Qwen3-TTS-12Hz-1.7B-Base (voice clone) を vLLM-Omni で起動 → /v1/audio/speech
 set -euo pipefail
 cd "$(dirname "$0")"
-source wsl_compat/env.sh
 source ~/venvs/vllm-omni/bin/activate
 O=$(python -c "import vllm_omni,os;print(os.path.dirname(vllm_omni.__file__))")
 

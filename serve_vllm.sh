@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Qwen3-Omni-30B-A3B-Instruct を vLLM (ROCm / WSL2 librocdxg) で起動 → /v1/chat/completions
+# Qwen3-Omni-30B-A3B-Instruct を vLLM (ROCm, native Linux) で起動 → /v1/chat/completions
 set -euo pipefail
 cd "$(dirname "$0")"
-source wsl_compat/env.sh
 source ~/venvs/vllm/bin/activate
+# gfx1151 向けに調整した fused MoE の設定 (wsl_compat/tune_moe.py で生成)
+export VLLM_TUNED_CONFIG_FOLDER="$PWD/moe_configs"
 
 exec vllm serve "$HOME/models/Qwen3-Omni-30B-A3B-Instruct" \
   --served-model-name qwen3-omni \

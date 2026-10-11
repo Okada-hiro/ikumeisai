@@ -33,19 +33,19 @@ source ~/venvs/app/bin/activate && python test_samples.py
 
 `test_audio/` の FLEURS ja_jp dev 3 本 (各 10 秒) で全工程を実行し、正解文と比較します。
 
-## 環境 (WSL2 + librocdxg / Radeon 8060S gfx1151)
+## 環境 (ネイティブ Ubuntu 24.04 / Radeon 8060S gfx1151)
 
 | venv | 用途 |
 |---|---|
 | `~/venvs/vllm` | vLLM 0.31.0+rocm723 (Qwen3-Omni) |
 | `~/venvs/vllm-omni` | vLLM 0.31.0 + vLLM-Omni 0.31.0rc1 (Qwen3-TTS) |
-| `~/venvs/app` | Gradio UI (torch 2.11.0+rocm7.13.0) |
+| `~/venvs/app` | Gradio UI |
 
-CUDA は使えない (AMD GPU) ため、ROCm 版 vLLM で動かしています。WSL 向けの回避策は `wsl_compat/` にまとめてあります:
+- ROCm 7.2.3 (`amdgpu-install --usecase=rocm --no-dkms`)。vLLM の torch 用に apt で `libopenmpi3t64` `libdw1t64` を入れる
+- BIOS で iGPU (UMA) を 2G にし、カーネル引数 `ttm.pages_limit=28835840 ttm.page_pool_size=28835840` で GPU が使えるメモリ (GTT) を約 110GB にする
+- `moe_configs/` — gfx1151 向けに調整した fused MoE の設定 (`serve_vllm.sh` が `VLLM_TUNED_CONFIG_FOLDER` で読み込む)。既定の設定だとデコードが 14.5 tok/s、M=1,2 を調整して 26.2 tok/s
 
-- `env.sh` — `HSA_ENABLE_DXG_DETECTION=1`、`ROCPROFILER_REGISTER_ENABLED=0` (rocprofiler が `/sys/class/kfd` 不在で異常終了するため)、`~/.local/lib/vllm-compat` (`libdw.so.1` と OpenMPI 4 C++ バインディングのスタブ `libmpi_cxx.so.40`、ソースは `mpi_cxx_stub.c`)
-- `runtime/sitecustomize.py` — MIOpen の畳み込みを無効化 (新しい入力形状ごとに約 29 秒のカーネル探索が走り、vLLM の起動プロファイルが終わらないため)
-- `patch_vllm_rocm.py` / `patch_vllm_omni_rocm.py` — amdsmi (ドライバ不在で失敗) の代わりに torch で GPU 情報を取得。venv を作り直したら再実行
+`wsl_compat/` は WSL2 + librocdxg 時代の回避策 (ネイティブでは不要)。`wsl_compat/tune_moe.py` は MoE 調整用にネイティブでも使う (出力先は venv 内なので、生成後に `moe_configs/` へコピーする)。
 
 ## テスト音声の出典
 
