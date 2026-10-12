@@ -12,7 +12,7 @@
 
 ### EVO-X2 の画面で使う
 
-一度だけ `./install_desktop.sh` を実行すると、デスクトップとアプリ一覧に「文字起こし&翻訳AI」が登録されます。クリックすると Firefox (専用プロファイル、マイク・自動再生は許可済み) が全画面で開きます。全画面は Alt+F4 で閉じます (モデルは動いたままなので、次の起動はすぐ)。GPU を空けたいときは「文字起こし&翻訳AI を終了」(`stop_app.sh`)。
+一度だけ `./install_desktop.sh` を実行すると、デスクトップとアプリ一覧に「文字起こし&翻訳AI」が登録されます。クリックすると Firefox (専用プロファイル、マイク・自動再生は許可済み) のウィンドウで開きます。✕ で閉じてもモデルは動いたままなので、次の起動はすぐです。EVO-X2 にはマイクが内蔵されていないので、USB マイクかマイク付きヘッドセット (前面ジャック) をつなぐこと。GPU を空けたいときは「文字起こし&翻訳AI を終了」(`stop_app.sh`)。
 
 ### Mac の画面で使う
 
@@ -42,7 +42,7 @@ source ~/venvs/app/bin/activate && python test_samples.py
 |---|---|
 | `~/venvs/vllm` | vLLM 0.31.0+rocm723 (Qwen3-Omni) |
 | `~/venvs/vllm-omni` | vLLM 0.31.0 + vLLM-Omni 0.31.0rc1 (Qwen3-TTS) |
-| `~/venvs/app` | アプリサーバー (FastAPI, `server.py`) |
+| `~/venvs/app` | アプリサーバー (FastAPI, `server.py`)。録音チェック用に onnxruntime + silero-vad (--no-deps、ONNX モデルだけ使用) |
 
 - セットアップ時に一度: `wsl_compat/apply_rocm_tts_patches.sh` (vLLM-Omni に TTS 高速化パッチ)、`wsl_compat/install_vllm_plugin.sh` (Omni の int8 プラグイン登録)。Omni は `wsl_compat/make_omni_w8a16g.py` で作る W8A16 モデルを使う
 - ROCm 7.2.3 (`amdgpu-install --usecase=rocm --no-dkms`)。vLLM の torch 用に apt で `libopenmpi3t64` `libdw1t64` を入れる

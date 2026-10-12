@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ワンクリック起動 (デスクトップの「文字起こし&翻訳AI」から呼ばれる。Mac 版は --server-only で呼ぶ):
-# アプリサーバー (:7861) を未起動なら起動し、専用プロファイルの Firefox を全画面 (kiosk) で開く。
+# アプリサーバー (:7861) を未起動なら起動し、専用プロファイルの Firefox を通常ウィンドウ (✕ で閉じられる) で開く。
 # モデルの読み込みとウォームアップはアプリサーバーが行い、その間 UI は起動画面を表示する。
 set -u
 cd "$(dirname "$0")"
@@ -25,4 +25,4 @@ fi
 if pgrep -f "[i]kumeisai-profile" >/dev/null; then
   exit 0
 fi
-exec firefox --profile "$PROFILE" --no-remote --kiosk "http://localhost:${PORT}/"
+exec firefox --profile "$PROFILE" --no-remote --new-window "http://localhost:${PORT}/"

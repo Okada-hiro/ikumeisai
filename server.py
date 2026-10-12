@@ -176,6 +176,41 @@ def partial_field(text: str, key: str) -> tuple[str | None, bool]:
     return "".join(out), False
 
 
+# ---------------------------------------------------------------- VAD
+
+MIN_SPEECH_S = 0.3
+_vad = None
+
+
+def speech_seconds(audio, sr: int) -> float:
+    """Silero VAD (ONNX, CPU) で発話と判定された秒数。音量ではなく声らしさで判定する。"""
+    global _vad
+    import numpy as np
+    import importlib.util
+
+    import onnxruntime as ort
+    import soxr
+
+    if _vad is None:
+        opts = ort.SessionOptions()
+        opts.inter_op_num_threads = opts.intra_op_num_threads = 1
+        # silero_vad を import すると torch を読み込むので、パッケージ内の ONNX ファイルだけを使う
+        pkg = Path(importlib.util.find_spec("silero_vad").submodule_search_locations[0])
+        _vad = ort.InferenceSession(str(pkg / "data" / "silero_vad.onnx"),
+                                    sess_options=opts, providers=["CPUExecutionProvider"])
+    x = (audio if sr == 16000 else soxr.resample(audio, sr, 16000)).astype(np.float32)
+    state = np.zeros((2, 1, 128), np.float32)
+    ctx = np.zeros((1, 64), np.float32)  # 前のチャンク末尾 64 サンプル (公式 OnnxWrapper と同じ)
+    voiced = 0
+    for i in range(0, len(x) - 511, 512):
+        chunk = x[None, i : i + 512]
+        prob, state = _vad.run(None, {"input": np.concatenate([ctx, chunk], 1), "state": state,
+                                      "sr": np.array(16000, np.int64)})
+        ctx = chunk[:, -64:]
+        voiced += float(prob[0, 0]) >= 0.5
+    return voiced * 512 / 16000
+
+
 # ---------------------------------------------------------------- pipeline
 
 async def process_stream(session: Path):
@@ -284,6 +319,10 @@ async def process(request: Request):
         raise HTTPException(400, f"音声を読み込めませんでした: {e}") from e
     if len(audio) < 0.3 * sr:
         raise HTTPException(400, "録音が短すぎます")
+    if audio.ndim == 2:
+        audio = audio.mean(axis=1)
+    if await asyncio.to_thread(speech_seconds, audio, sr) < MIN_SPEECH_S:  # マイク未接続・無音・雑音のみ
+        raise HTTPException(400, "声が検出されませんでした。マイクの接続を確認して、もう一度話してください")
     session = pipeline.new_session_dir()
     pipeline.save_customer_wav(sr, audio, session)
 
