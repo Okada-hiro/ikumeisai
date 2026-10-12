@@ -25,4 +25,6 @@ fi
 if pgrep -f "[i]kumeisai-profile" >/dev/null; then
   exit 0
 fi
+# 前回の強制終了分のセッションを消す (「前回のタブを開きますか?」バーを出さない)
+rm -rf "$PROFILE"/sessionstore.jsonlz4 "$PROFILE"/sessionstore-backups
 exec firefox --profile "$PROFILE" --no-remote --new-window "http://localhost:${PORT}/"
