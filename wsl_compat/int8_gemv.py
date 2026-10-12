@@ -71,13 +71,19 @@ def _(x, w, q, s):
     return x.new_empty(*x.shape[:-1], w.shape[0])
 
 
-def quantize_vllm_linears(root: torch.nn.Module, logger=None) -> int:
-    """Attach int8 copies to every unquantized vLLM LinearBase under ``root`` and route decode through them."""
+def quantize_vllm_linears(root: torch.nn.Module, logger=None, include_lm_head: bool = False,
+                          skip_suffixes: tuple[str, ...] = ()) -> int:
+    """Attach int8 copies to every unquantized vLLM LinearBase (and optionally ParallelLMHead) under ``root``
+    and route decode through them."""
     from vllm.model_executor.layers.linear import LinearBase
+    from vllm.model_executor.layers.vocab_parallel_embedding import ParallelLMHead
 
     count = 0
     for name, mod in root.named_modules():
-        if not isinstance(mod, LinearBase) or type(mod.quant_method).__name__ != "UnquantizedLinearMethod":
+        is_linear = isinstance(mod, LinearBase) and type(mod.quant_method).__name__ == "UnquantizedLinearMethod"
+        is_head = (include_lm_head and isinstance(mod, ParallelLMHead)
+                   and type(mod.quant_method).__name__ == "UnquantizedEmbeddingMethod")
+        if not (is_linear or is_head) or name.endswith(skip_suffixes):
             continue
         w = getattr(mod, "weight", None)
         if w is None or not supported(w):

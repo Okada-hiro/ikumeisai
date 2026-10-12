@@ -8,6 +8,8 @@ export OMNI_DISABLE_MIOPEN_CONV=${OMNI_DISABLE_MIOPEN_CONV:-1}
 # talker / code predictor のデコード GEMM を int8 weight-only (W8A16) で実行 (0 で bf16)
 export OMNI_TALKER_INT8=${OMNI_TALKER_INT8:-1}
 export OMNI_CP_INT8=${OMNI_CP_INT8:-1}
+# コンパイルキャッシュは上記の差し替えを反映しないことがあるため無効化
+export VLLM_DISABLE_COMPILE_CACHE=${VLLM_DISABLE_COMPILE_CACHE:-1}
 O=$(python -c "import vllm_omni,os;print(os.path.dirname(vllm_omni.__file__))")
 
 exec vllm serve "$HOME/models/Qwen3-TTS-12Hz-1.7B-Base" \
