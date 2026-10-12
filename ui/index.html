@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f4fbff" />
+  <title>文字起こし&翻訳AI</title>
+  <link rel="stylesheet" href="./assets/styles.css" />
+  <link rel="stylesheet" href="./assets/boot.css" />
+  <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
+</head>
+<body>
+  <main class="shell">
+    <section class="top-panel" aria-label="録音操作">
+      <header class="header">
+        <div class="brand"><span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></span><h1>文字起こし<span class="brand-amp">&</span>翻訳AI</h1></div>
+        <span class="header-tag"><span class="header-dot"></span>VOICE TRANSLATION</span>
+      </header>
+      <div class="capture">
+        <p class="instruction">10秒程度日本語を話してください。</p>
+        <div class="mic-stage">
+          <div class="mic-glow"></div>
+          <div class="mic-ring"></div>
+          <button id="recordButton" class="mic-button" type="button" aria-label="録音を開始" aria-pressed="false">
+            <svg class="mic-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" aria-hidden="true"><rect x="17" y="7" width="14" height="25" rx="7"/><path d="M11 24a13 13 0 0 0 26 0M24 37v6m-9 0h18"/></svg>
+            <svg class="stop-icon" viewBox="0 0 48 48" fill="currentColor" aria-hidden="true"><rect x="14" y="14" width="20" height="20" rx="4"/></svg>
+          </button>
+        </div>
+        <div class="record-status"><span id="statusDot" class="status-dot"></span><span id="recordStatus" aria-live="polite">タップして録音を開始</span><span id="timer" class="timer" aria-live="off"></span></div>
+      </div>
+      <div class="top-bottom-line"></div>
+    </section>
+
+    <section class="results-panel" aria-label="翻訳結果">
+      <div class="section-head"><div><div class="eyebrow">LIVE OUTPUT</div><h2>音声から、ことばへ。</h2></div><span class="section-aside">Japanese <span aria-hidden="true">→</span> English</span></div>
+      <div class="transcript-grid">
+        <article class="transcript-card" aria-labelledby="jaTitle">
+          <div class="card-top"><div class="card-title"><span class="language-icon">あ</span><div><div class="language-code">ORIGINAL / JA</div><h3 id="jaTitle">日本語文字起こし</h3></div></div><span id="jaSpinner" class="spinner" aria-label="処理中" hidden></span></div>
+          <div class="card-rule"></div>
+          <div class="card-content" id="jaText" aria-live="polite"><span class="placeholder">録音すると、ここに日本語の文字起こしが表示されます。</span></div>
+          <div class="card-foot"><span class="foot-label">TRANSCRIPTION</span><span id="jaState" class="foot-state">READY</span></div>
+        </article>
+        <article class="transcript-card" aria-labelledby="enTitle">
+          <div class="card-top"><div class="card-title"><span class="language-icon language-icon-en">A</span><div><div class="language-code">TRANSLATED / EN</div><h3 id="enTitle">英語翻訳</h3></div></div><span id="enSpinner" class="spinner" aria-label="処理中" hidden></span></div>
+          <div class="card-rule"></div>
+          <div class="card-content" id="enText" aria-live="polite"><span class="placeholder">英語の翻訳文がここに表示されます。</span></div>
+          <div class="card-foot"><span class="foot-label">TRANSLATION</span><span id="enState" class="foot-state">READY</span></div>
+        </article>
+      </div>
+      <footer class="voice-panel" id="voicePanel" aria-live="polite">
+        <div class="voice-left"><div class="voice-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" aria-hidden="true"><path d="M4 10v4m4-7v10m4-14v18m4-14v10m4-7v4m4-5v6"/></svg></div><div><div class="voice-caption">VOICE CLONING / PLAYBACK</div><div id="voiceStatus" class="voice-status">音声の生成を待っています</div></div></div>
+        <div id="wave" class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <button id="replayButton" class="replay-button" type="button" hidden aria-label="英語音声をもう一度再生"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7V3l-3 3 3 3V7a9 9 0 1 1-1 8"/></svg><span>もう一度再生</span></button>
+      </footer>
+      <div class="bottom-note"><span>DESIGNED FOR NATURAL CONVERSATION</span><span>JA / EN <span class="small-separator">•</span> REAL-TIME TRANSLATION</span></div>
+    </section>
+  </main>
+  <div id="bootOverlay" class="boot" role="status" aria-live="polite">
+    <div class="boot-card">
+      <div class="eyebrow">STARTING UP</div>
+      <h2>準備しています</h2>
+      <p class="boot-lead">モデルの読み込みとウォームアップが終わると、この画面が閉じてすぐにお使いいただけます。</p>
+      <ol id="bootSteps" class="boot-steps"></ol>
+      <div class="boot-foot"><span id="bootElapsed">0:00</span><span id="bootNote">アプリサーバーに接続しています…</span></div>
+    </div>
+  </div>
+  <script type="module" src="./assets/main.js"></script>
+</body>
+</html>

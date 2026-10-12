@@ -13,7 +13,7 @@ VLLM_MODEL_NAME = "qwen3-omni"
 TTS_BASE_URL = "http://127.0.0.1:8001/v1"
 TTS_MODEL_NAME = "qwen3-tts"
 
-APP_HOST = "0.0.0.0"
+APP_HOST = "127.0.0.1"  # UI はこのマシンの Firefox か SSH トンネル経由で開く
 APP_PORT = 7861
 
 PROMPT = (
