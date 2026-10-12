@@ -19,4 +19,6 @@ s = s.replace(a, a + "        # ikumeisai: gfx1151 MIOpen picks naive_conv (doub
 open(p, "w").write(s)
 PY
 python3 "$(dirname "$0")/patch_cp_skinny.py" 2>/dev/null || python3 ~/workspace/ikumeisai/wsl_compat/patch_cp_skinny.py
+
+python3 ~/workspace/ikumeisai/wsl_compat/patch_tts_int8.py
 echo "patched $D"
