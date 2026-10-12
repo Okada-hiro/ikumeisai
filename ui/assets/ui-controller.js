@@ -1,4 +1,5 @@
 /** Reusable UI and recording orchestration. No hardcoded transcript or API endpoint. */
+import {PcmStreamPlayer} from './pcm-stream-player.js';
 export class TranslationUI {
   constructor({ processor, maxRecordingMs = 10000 }) {
     if (typeof processor !== 'function') throw new TypeError('processor must be an async generator function');
@@ -8,7 +9,7 @@ export class TranslationUI {
     this.shell = document.querySelector('.shell');
     this.mediaRecorder = null; this.mediaStream = null; this.chunks = []; this.recordStartedAt = 0;
     this.ticker = null; this.autoStop = null; this.busy = false; this.recording = false;
-    this.audio = null; this.speech = null; this.lastAudioUrl = null; this.lastEnglish = '';
+    this.audio = null; this.speech = null; this.lastAudioUrl = null; this.lastEnglish = ''; this.audioCtx = null; this.stream = null;
     this.el.recordButton.addEventListener('click', () => this.toggle());
     this.el.replayButton.addEventListener('click', () => this.playResult(this.lastAudioUrl, this.lastEnglish));
     window.addEventListener('pagehide', () => this.cleanup());
@@ -16,6 +17,7 @@ export class TranslationUI {
   async toggle(){ if(this.recording){this.stopRecording();return;} if(this.busy)return; await this.startRecording(); }
   async startRecording(){
     this.stopPlayback();this.reset();
+    try{this.audioCtx=this.audioCtx||new AudioContext();this.audioCtx.resume();}catch{/* streamed playback unavailable */}
     try {
       if(!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) throw new Error('このブラウザではマイク録音に対応していません。localhost または HTTPS で開いてください。');
       this.mediaStream = await navigator.mediaDevices.getUserMedia({audio:true});
@@ -50,7 +52,15 @@ export class TranslationUI {
         if(event.type==='transcript')this.updateText('ja',event.text,event.done);
         if(event.type==='translation'){this.lastEnglish=event.text;this.updateText('en',event.text,event.done);}
         if(event.type==='status'&&event.message)this.el.voiceStatus.textContent=event.message;
-        if(event.type==='audio'){
+        if(event.type==='audio_chunk'&&this.audioCtx){ // {pcm16: base64, sample_rate} — play as it arrives
+          if(!this.stream){this.stream=new PcmStreamPlayer(this.audioCtx);this.el.voicePanel.classList.add('is-playing');this.el.voiceStatus.textContent='あなたの声で英語音声を再生中';}
+          this.stream.push(event.pcm16,event.sample_rate);
+        }
+        if(event.type==='audio'&&event.streamed&&this.stream){
+          this.lastAudioUrl=event.url||null;this.el.replayButton.hidden=false;
+          await this.stream.finish();this.stream=null;this.el.voicePanel.classList.remove('is-playing');
+          this.el.voiceStatus.textContent='英語音声の再生が完了しました';
+        }else if(event.type==='audio'){
           this.lastAudioUrl=event.url||null;
           this.el.voiceStatus.textContent='あなたの声で英語音声を再生中';
           await this.playResult(this.lastAudioUrl,this.lastEnglish);
@@ -72,7 +82,7 @@ export class TranslationUI {
       this.el.voiceStatus.textContent='英語音声の再生が完了しました';
     }catch(e){this.el.voiceStatus.textContent=e.message;}finally{this.el.voicePanel.classList.remove('is-playing');}
   }
-  stopPlayback(){if(this.audio){this.audio.pause();this.audio=null;}if(window.speechSynthesis)window.speechSynthesis.cancel();this.el.voicePanel.classList.remove('is-playing');}
+  stopPlayback(){if(this.stream){this.stream.stop();this.stream=null;}if(this.audio){this.audio.pause();this.audio=null;}if(window.speechSynthesis)window.speechSynthesis.cancel();this.el.voicePanel.classList.remove('is-playing');}
   releaseMic(){this.mediaStream?.getTracks().forEach(track=>track.stop());this.mediaStream=null;this.mediaRecorder=null;}
   unlock(){this.busy=false;this.el.recordButton.disabled=false;}
   cleanup(){clearInterval(this.ticker);clearTimeout(this.autoStop);this.releaseMic();this.stopPlayback();}

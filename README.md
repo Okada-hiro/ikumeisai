@@ -26,6 +26,8 @@ cd ~/workspace/ikumeisai && ./start.sh   # UI は http://localhost:7861/
 
 ログは `~/logs/{tts_server,vllm_server,app}.log`。アプリサーバーは 127.0.0.1 にだけ待ち受けます (別マシンからは SSH トンネル経由)。
 
+**ブランチ tts-audio-streaming**: 英語音声もストリーミング再生する。TTS を PCM ストリーム (`stream_format=audio`) で呼び、届いた断片を `{"type": "audio_chunk", "pcm16": <base64>, "sample_rate": 24000}` で流し、UI は Web Audio API で隙間なく順に再生する (`ui/assets/pcm-stream-player.js`)。`codec_chunk_ramp: [2, 4, 8, 16, 25]` で断片を徐々に大きくし、warm で英訳完了から最初の声まで約 0.3–0.4 秒・途切れなし (非ストリーミングは TTS 全体の約 1.7 秒待ち)。全体は従来どおり `translation.wav` に保存して「もう一度再生」に使う。
+
 `POST /api/process` (body: `audio/wav`) は NDJSON で `{"type": "transcript"|"translation", "text": <その時点の全文>, "done": bool}`、`status`、`audio` (`/api/audio/<session>/translation.wav`)、`timing` を返します。UI 側は `ui/assets/api-processor.js` (デモの `demo-processor.js` を置き換えたもの)。
 
 ## 動作確認

@@ -22,6 +22,7 @@ import time
 from pathlib import Path
 
 import httpx
+import numpy as np
 import soundfile as sf
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
@@ -34,6 +35,7 @@ import pipeline
 UI_DIR = config.ROOT / "ui"
 LOG_DIR = Path.home() / "logs"
 WARMUP_WAV = config.ROOT / "test_audio" / "sample1.wav"
+TTS_SAMPLE_RATE = 24000  # Qwen3-TTS-12Hz の出力 (PCM ストリームはヘッダなし)
 WARMUP_ROUNDS = 2  # 1 回目はカーネルの初回コンパイル等で遅いので 2 回流す
 
 # (id, 起動スクリプト, ポート, ログ, 表示名) — TTS を先に起動 (小さい方が先に GPU メモリを確保する)
@@ -267,24 +269,41 @@ async def process_stream(session: Path):
     (session / "translation.txt").write_text(en, encoding="utf-8")
 
     yield {"type": "status", "message": "あなたの声で英語音声を生成しています"}
-    async with httpx.AsyncClient(timeout=600) as client:
-        r = await client.post(f"{config.TTS_BASE_URL}/audio/speech", json={
+    # TTS は PCM (16bit, mono, 24kHz) をストリーミングで受け取り、届いた分からすぐ UI へ流す (UI が順に再生)
+    pcm, carry, t_audio = bytearray(), b"", None
+    async with httpx.AsyncClient(timeout=httpx.Timeout(600, connect=10)) as client:
+        async with client.stream("POST", f"{config.TTS_BASE_URL}/audio/speech", json={
             "model": config.TTS_MODEL_NAME,
             "input": en,
             "task_type": "Base",
             "language": "English",
             "ref_audio": "data:audio/wav;base64," + base64.b64encode(wav.read_bytes()).decode(),
             "ref_text": ja,
-            "response_format": "wav",
-        })
-    if r.status_code != 200:
-        yield {"type": "error", "message": f"音声合成エラー {r.status_code}: {r.text[:300]}"}
+            "response_format": "pcm",
+            "stream": True,
+            "stream_format": "audio",
+        }) as r:
+            if r.status_code != 200:
+                yield {"type": "error", "message": f"音声合成エラー {r.status_code}: {(await r.aread())[:300]!r}"}
+                return
+            async for b in r.aiter_raw():
+                b = carry + b
+                cut = len(b) - len(b) % 2  # 16bit サンプルの途中で切れた 1 バイトは次へ持ち越す
+                b, carry = b[:cut], b[cut:]
+                if not b:
+                    continue
+                t_audio = t_audio or time.time()
+                pcm += b
+                yield {"type": "audio_chunk", "pcm16": base64.b64encode(b).decode(), "sample_rate": TTS_SAMPLE_RATE}
+    if not pcm:
+        yield {"type": "error", "message": "音声が生成されませんでした"}
         return
-    (session / "translation.wav").write_bytes(r.content)
+    sf.write(session / "translation.wav", np.frombuffer(bytes(pcm), "<i2"), TTS_SAMPLE_RATE, subtype="PCM_16")
     t_tts = time.time()
-    yield {"type": "audio", "url": f"/api/audio/{session.name}/translation.wav"}
+    yield {"type": "audio", "url": f"/api/audio/{session.name}/translation.wav", "streamed": True}
     yield {"type": "timing", "first_token_s": round((t_first or t_llm) - t0, 2),
-           "transcribe_translate_s": round(t_llm - t0, 2), "tts_s": round(t_tts - t_llm, 2)}
+           "transcribe_translate_s": round(t_llm - t0, 2), "first_audio_s": round(t_audio - t_llm, 2),
+           "tts_s": round(t_tts - t_llm, 2)}
 
 
 # ---------------------------------------------------------------- app

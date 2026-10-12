@@ -16,6 +16,12 @@ connectors:
       code_predictor_kv_cache: true
       code_predictor_fused_sampling: true
       code_predictor_fused: true
+      codec_chunk_ramp:
+      - 2
+      - 4
+      - 8
+      - 16
+      - 25
 stages:
 - stage_id: 0
   max_num_seqs: 64
