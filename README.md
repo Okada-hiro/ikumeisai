@@ -16,7 +16,12 @@
 
 ### Mac の画面で使う
 
-Mac で一度だけ `bash mac/build_mac_app.sh` を実行すると、デスクトップに「文字起こし&翻訳AI.app」と「文字起こし&翻訳AI を終了.app」ができます。起動すると EVO-X2 のアプリサーバーを画面なしで起動し (`launch_app.sh --server-only`)、SSH トンネル (Mac localhost:7861 → EVO-X2 127.0.0.1:7861) を張って Chrome のアプリウィンドウで UI を開きます。録音は Mac のマイク、音声は SSH で EVO-X2 に送られ、英語音声は Mac で再生されます。前提: Mac から `ssh sugakuka@192.168.1.12` が鍵認証で通ること (接続先は `IKUMEISAI_HOST` で変更可)。初回は macOS が Chrome のマイク使用許可を求めます。ログは `~/Library/Logs/ikumeisai_mac.log`。
+Mac で一度だけ `bash mac/build_mac_app.sh` を実行すると、デスクトップに「文字起こし&翻訳AI.app」と「文字起こし&翻訳AI を終了.app」ができます。**EVO-X2 が Ubuntu で起動していて (ログイン不要) Mac と同じ Wi-Fi にいれば、クリックするだけ**で、アプリが EVO-X2 を探して SSH 接続し、アプリサーバーを画面なしで起動 (`launch_app.sh --server-only`)、SSH トンネル (Mac localhost:7861 → EVO-X2 127.0.0.1:7861) を張って Chrome のアプリウィンドウで UI を開きます。録音は Mac のマイク、音声は SSH で EVO-X2 に送られ、英語音声は Mac で再生されます。
+
+- 接続先は、前回つながった宛先 → `192.168.1.12` → `sugakuka-NucBox-EVO-X2.local` (mDNS) の順に試すので、DHCP で IP が変わっても同じ Wi-Fi なら見つかる。ホスト鍵は登録済みの EVO-X2 のもので検証する (`HostKeyAlias`)
+- EVO-X2 の起動途中なら通知を出して最大 4 分待つ。つながらなければ確認事項をダイアログで表示
+- 前提: Mac から EVO-X2 へ鍵認証 (`~/.ssh/id_ed25519`) で ssh できること。EVO-X2 側で一度 `./setup_remote_access.sh` を実行し、SSH・mDNS・Wi-Fi をログイン前から有効にしておくこと
+- 宛先などは環境変数 `IKUMEISAI_HOSTS` / `IKUMEISAI_USER` / `IKUMEISAI_WAIT_S` で変更可。ログは `~/Library/Logs/ikumeisai_mac.log`。初回は macOS が Chrome のマイク使用許可を求める
 
 ### ターミナルから
 
