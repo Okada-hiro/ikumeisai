@@ -23,6 +23,14 @@ Mac で一度だけ `bash mac/build_mac_app.sh` を実行すると、デスク�
 - 前提: Mac から EVO-X2 へ鍵認証 (`~/.ssh/id_ed25519`) で ssh できること。EVO-X2 側で一度 `./setup_remote_access.sh` を実行し、SSH・mDNS・Wi-Fi をログイン前から有効にしておくこと
 - 宛先などは環境変数 `IKUMEISAI_HOSTS` / `IKUMEISAI_USER` / `IKUMEISAI_WAIT_S` で変更可。ログは `~/Library/Logs/ikumeisai_mac.log`。初回は macOS が Chrome のマイク使用許可を求める
 
+### 別の Wi-Fi・学外から使う (Tailscale)
+
+EVO-X2 の `192.168.1.12` は研究室 Wi-Fi の中だけで通じるプライベートアドレスで、外からは届かない (大学のルーターも外からの接続を通さない)。Tailscale (WireGuard のオーバーレイ VPN) を使うと、EVO-X2 と Mac がそれぞれ外向きに接続するだけで、ポート開放なしに暗号化された経路でつながる。
+
+1. EVO-X2 で一度 `./setup_tailscale.sh` を実行し、表示された URL で Tailscale にログイン (管理画面で evo-x2 の key expiry を無効にしておく)
+2. Mac に Tailscale (App Store) を入れて同じアカウントでログイン
+3. 以後は EVO-X2 が起動していればどこからでも `ssh sugakuka@evo-x2`、Mac 版アプリもそのまま使える (同じ Wi-Fi にいれば LAN 直結、いなければ `evo-x2` に接続)
+
 ### ターミナルから
 
 ```bash

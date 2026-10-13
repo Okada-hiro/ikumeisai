@@ -4,11 +4,12 @@
 # Mac のブラウザで UI を開く。録音は Mac のマイク、音声はトンネル (SSH) で EVO-X2 に送られる。
 #   ikumeisai_mac.sh        起動
 #   ikumeisai_mac.sh stop   EVO-X2 のアプリとモデルを終了し、トンネルを閉じる
-# 前提: EVO-X2 が Ubuntu で起動済み (ログイン不要) で Mac と同じ Wi-Fi にいること。
+# 前提: EVO-X2 が Ubuntu で起動済み (ログイン不要) で、Mac と同じ Wi-Fi にいるか、両方が Tailscale に参加していること。
 #       EVO-X2 側で一度 ./setup_remote_access.sh を実行しておくこと (SSH・mDNS・Wi-Fi をログイン前から有効化)。
 USER_AT="${IKUMEISAI_USER:-sugakuka}"
 # 試す順: 前回つながった宛先 → 固定 IP → mDNS 名 (DHCP で IP が変わっても同じ Wi-Fi なら見つかる)
-HOSTS="${IKUMEISAI_HOSTS:-192.168.1.12 sugakuka-NucBox-EVO-X2.local}"
+#        → Tailscale 名 evo-x2 (別の Wi-Fi・学外からでも。EVO-X2 で setup_tailscale.sh、Mac にも Tailscale が必要)
+HOSTS="${IKUMEISAI_HOSTS:-192.168.1.12 sugakuka-NucBox-EVO-X2.local evo-x2}"
 REMOTE_DIR="${IKUMEISAI_REMOTE_DIR:-~/workspace/ikumeisai}"
 WAIT_S="${IKUMEISAI_WAIT_S:-240}"  # 電源を入れた直後でも待てるように
 PORT=7861
@@ -61,7 +62,7 @@ if ! HOST=$(find_host "$WAIT_S"); then
   ssid=$(mac_ssid)
   alert "EVO-X2 に接続できませんでした。次を確認してください。
 ・EVO-X2 の電源が入り、Ubuntu で起動している (ログインは不要)
-・EVO-X2 と Mac が同じ Wi-Fi にいる${ssid:+ (この Mac: ${ssid})}
+・EVO-X2 と Mac が同じ Wi-Fi にいる${ssid:+ (この Mac: ${ssid})}、または両方で Tailscale が接続中
 試した宛先: ${HOSTS}"
   exit 1
 fi
