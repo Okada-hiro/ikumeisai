@@ -19,10 +19,10 @@ async function toWav(blob) {
   } finally { ctx.close(); }
 }
 
-export async function* apiProcessor({ audioBlob }) {
+export async function* apiProcessor({ audioBlob, lang = 'en' }) {
   if (!audioBlob?.size) throw new Error('録音した音声が空です');
   const wav = await toWav(audioBlob);
-  const res = await fetch('/api/process', { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: wav });
+  const res = await fetch(`/api/process?lang=${encodeURIComponent(lang)}`, { method: 'POST', headers: { 'Content-Type': 'audio/wav' }, body: wav });
   if (!res.ok) {
     let msg = `サーバーエラー (${res.status})`;
     try { msg = (await res.json()).detail || msg; } catch { /* keep default */ }

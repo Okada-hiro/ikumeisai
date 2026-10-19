@@ -1,10 +1,11 @@
 /** Reusable UI and recording orchestration. No hardcoded transcript or API endpoint. */
+const LANG_KEY = 'ikumeisai.targetLang';
 export class TranslationUI {
-  constructor({ processor, maxRecordingMs = 10000 }) {
+  constructor({ processor, maxRecordingMs = 10000, languages = [], initialLang = 'en' }) {
     if (typeof processor !== 'function') throw new TypeError('processor must be an async generator function');
     this.processor = processor;
     this.maxRecordingMs = maxRecordingMs;
-    this.el = Object.fromEntries(['recordButton','recordStatus','statusDot','timer','jaText','enText','jaSpinner','enSpinner','jaState','enState','voiceStatus','voicePanel','replayButton'].map(id => [id,document.getElementById(id)]));
+    this.el = Object.fromEntries(['recordButton','recordStatus','statusDot','timer','jaText','enText','jaSpinner','enSpinner','jaState','enState','voiceStatus','voicePanel','replayButton','langPicker','targetName','enIcon','enCode','enTitle'].map(id => [id,document.getElementById(id)]));
     this.shell = document.querySelector('.shell');
     this.mediaRecorder = null; this.mediaStream = null; this.chunks = []; this.recordStartedAt = 0;
     this.ticker = null; this.autoStop = null; this.busy = false; this.recording = false;
@@ -12,7 +13,34 @@ export class TranslationUI {
     this.el.recordButton.addEventListener('click', () => this.toggle());
     this.el.replayButton.addEventListener('click', () => this.playResult(this.lastAudioUrl, this.lastEnglish));
     window.addEventListener('pagehide', () => this.cleanup());
+    this.languages = languages;
+    let saved = initialLang; try { saved = localStorage.getItem(LANG_KEY) || initialLang; } catch { /* storage unavailable */ }
+    this.renderLanguages();
+    this.setLanguage(languages.some(l => l.code === saved) ? saved : initialLang);
   }
+  // Target-language picker: one pill per language; the card titles and voice messages follow the choice.
+  renderLanguages(){
+    if(!this.el.langPicker || !this.languages.length) return;
+    this.el.langPicker.innerHTML='';
+    for(const l of this.languages){
+      const b=document.createElement('button');b.type='button';b.className='lang-option';b.dataset.code=l.code;
+      b.setAttribute('role','radio');b.setAttribute('aria-label',`翻訳先: ${l.ja}`);b.textContent=l.native;
+      b.addEventListener('click',()=>{if(!this.busy&&!this.recording)this.setLanguage(l.code);});
+      this.el.langPicker.append(b);
+    }
+  }
+  setLanguage(code){
+    const t=this.target=this.languages.find(l=>l.code===code)||{code:'en',native:'English',name:'English',ja:'英語',tag:'EN',icon:'A',speech:'en-US'};
+    try{localStorage.setItem(LANG_KEY,t.code);}catch{/* storage unavailable */}
+    for(const b of this.el.langPicker?.children||[])b.setAttribute('aria-checked',String(b.dataset.code===t.code));
+    if(this.el.targetName)this.el.targetName.textContent=t.name;
+    if(this.el.enIcon)this.el.enIcon.textContent=t.icon;
+    if(this.el.enCode)this.el.enCode.textContent=`TRANSLATED / ${t.tag}`;
+    if(this.el.enTitle)this.el.enTitle.textContent=`${t.ja}翻訳`;
+    this.el.replayButton.setAttribute('aria-label',`${t.ja}音声をもう一度再生`);
+    if(!this.busy&&!this.recording)this.reset();
+  }
+  lockLanguages(on){for(const b of this.el.langPicker?.children||[])b.disabled=on;}
   async toggle(){ if(this.recording){this.stopRecording();return;} if(this.busy)return; await this.startRecording(); }
   async startRecording(){
     this.stopPlayback();this.reset();
@@ -25,7 +53,7 @@ export class TranslationUI {
       rec.ondataavailable=e=>{if(e.data.size)this.chunks.push(e.data);};
       rec.onstop=()=>this.finishRecording(rec.mimeType);
       rec.start(200);
-      this.recordStartedAt=performance.now(); this.recording=true; this.shell.classList.add('is-recording');
+      this.recordStartedAt=performance.now(); this.recording=true; this.shell.classList.add('is-recording');this.lockLanguages(true);
       this.el.recordButton.setAttribute('aria-label','録音を停止');this.el.recordButton.setAttribute('aria-pressed','true');
       this.el.recordStatus.textContent='録音中 · もう一度押して停止';this.el.timer.textContent='00:00';
       this.ticker=setInterval(()=>{let s=Math.floor((performance.now()-this.recordStartedAt)/1000);this.el.timer.textContent=`00:${String(s).padStart(2,'0')}`;},150);
@@ -41,18 +69,18 @@ export class TranslationUI {
   }
   async finishRecording(mimeType){
     const blob=new Blob(this.chunks,{type:mimeType||'audio/webm'});
-    this.releaseMic();this.busy=true;this.el.recordButton.disabled=true;
+    this.releaseMic();this.busy=true;this.el.recordButton.disabled=true;this.lockLanguages(true);
     if(!blob.size){this.el.recordStatus.textContent='録音データがありません。もう一度お試しください';this.unlock();return;}
     this.setLoading('ja',true);this.setLoading('en',true);
     try {
       // processor yields {type:'transcript'|'translation'|'audio'|'status', ...}
-      for await(const event of this.processor({audioBlob:blob,mimeType:blob.type})){
+      for await(const event of this.processor({audioBlob:blob,mimeType:blob.type,lang:this.target.code})){
         if(event.type==='transcript')this.updateText('ja',event.text,event.done);
         if(event.type==='translation'){this.lastEnglish=event.text;this.updateText('en',event.text,event.done);}
         if(event.type==='status'&&event.message)this.el.voiceStatus.textContent=event.message;
         if(event.type==='audio'){
           this.lastAudioUrl=event.url||null;
-          this.el.voiceStatus.textContent='あなたの声で英語音声を再生中';
+          this.el.voiceStatus.textContent=`あなたの声で${this.target.ja}音声を再生中`;
           await this.playResult(this.lastAudioUrl,this.lastEnglish);
         }
       }
@@ -61,19 +89,19 @@ export class TranslationUI {
   }
   updateText(lang,text,done=false){let el=this.el[lang+'Text'];el.textContent=text;el.classList.toggle('streaming',!done);this.el[lang+'State'].textContent=done?'COMPLETE':'GENERATING';this.el[lang+'State'].classList.toggle('is-done',done);this.setLoading(lang,!done);}
   setLoading(lang,on){this.el[lang+'Spinner'].hidden=!on;}
-  reset(){for(const lang of ['ja','en']){this.el[lang+'Text'].innerHTML=`<span class="placeholder">${lang==='ja'?'録音すると、ここに日本語の文字起こしが表示されます。':'英語の翻訳文がここに表示されます。'}</span>`;this.el[lang+'Text'].classList.remove('streaming');this.el[lang+'State'].textContent='READY';this.el[lang+'State'].classList.remove('is-done');this.setLoading(lang,false);}this.el.voicePanel.classList.remove('is-playing');this.el.voiceStatus.textContent='音声の生成を待っています';this.el.replayButton.hidden=true;this.lastEnglish='';this.lastAudioUrl=null;}
+  reset(){for(const lang of ['ja','en']){this.el[lang+'Text'].innerHTML=`<span class="placeholder">${lang==='ja'?'録音すると、ここに日本語の文字起こしが表示されます。':`${this.target?.ja||'英語'}の翻訳文がここに表示されます。`}</span>`;this.el[lang+'Text'].classList.remove('streaming');this.el[lang+'State'].textContent='READY';this.el[lang+'State'].classList.remove('is-done');this.setLoading(lang,false);}this.el.voicePanel.classList.remove('is-playing');this.el.voiceStatus.textContent='音声の生成を待っています';this.el.replayButton.hidden=true;this.lastEnglish='';this.lastAudioUrl=null;}
   async playResult(url,text){
-    this.stopPlayback();this.el.replayButton.hidden=false;this.el.voicePanel.classList.add('is-playing');this.el.voiceStatus.textContent='あなたの声で英語音声を再生中';
+    this.stopPlayback();this.el.replayButton.hidden=false;this.el.voicePanel.classList.add('is-playing');this.el.voiceStatus.textContent=`あなたの声で${this.target.ja}音声を再生中`;
     try{
       if(url){await new Promise((resolve,reject)=>{const audio=this.audio=new Audio(url);audio.onended=resolve;audio.onerror=()=>reject(new Error('音声を再生できませんでした'));audio.play().catch(reject);});}
       else if(window.speechSynthesis&&text){ // Demo fallback only: NOT voice cloning.
-        await new Promise((resolve,reject)=>{const utterance=this.speech=new SpeechSynthesisUtterance(text);utterance.lang='en-US';utterance.rate=.93;utterance.onend=resolve;utterance.onerror=e=>e.error==='canceled'?resolve():reject(new Error('読み上げに失敗しました'));window.speechSynthesis.speak(utterance);});
+        await new Promise((resolve,reject)=>{const utterance=this.speech=new SpeechSynthesisUtterance(text);utterance.lang=this.target.speech;utterance.rate=.93;utterance.onend=resolve;utterance.onerror=e=>e.error==='canceled'?resolve():reject(new Error('読み上げに失敗しました'));window.speechSynthesis.speak(utterance);});
       }else throw new Error('再生できる音声がありません');
-      this.el.voiceStatus.textContent='英語音声の再生が完了しました';
+      this.el.voiceStatus.textContent=`${this.target.ja}音声の再生が完了しました`;
     }catch(e){this.el.voiceStatus.textContent=e.message;}finally{this.el.voicePanel.classList.remove('is-playing');}
   }
   stopPlayback(){if(this.audio){this.audio.pause();this.audio=null;}if(window.speechSynthesis)window.speechSynthesis.cancel();this.el.voicePanel.classList.remove('is-playing');}
   releaseMic(){this.mediaStream?.getTracks().forEach(track=>track.stop());this.mediaStream=null;this.mediaRecorder=null;}
-  unlock(){this.busy=false;this.el.recordButton.disabled=false;}
+  unlock(){this.busy=false;this.el.recordButton.disabled=false;this.lockLanguages(false);}
   cleanup(){clearInterval(this.ticker);clearTimeout(this.autoStop);this.releaseMic();this.stopPlayback();}
 }

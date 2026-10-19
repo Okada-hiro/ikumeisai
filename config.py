@@ -37,6 +37,9 @@ TARGET_LANGUAGES = {  # code: (プロンプト中の言語名, 例文の訳, Qwe
 PROMPTS = {code: _PROMPT_TEMPLATE.format(language=lang, example=ex)
            for code, (lang, ex, _) in TARGET_LANGUAGES.items()}
 TTS_LANGUAGES = {code: tts for code, (_, _, tts) in TARGET_LANGUAGES.items()}
+# 声の特徴 (x-vector) だけでクローンする言語。中国語は日本語の参照音声と書き起こし (漢字) を手本にすると
+# 漢字を日本語寄りに読んでしまい聞き取れない (Omni で文字起こしすると別の文になる)。x-vector のみなら完全に一致。
+TTS_XVECTOR_ONLY = {"zh"}
 assert PROMPTS["en"] == PROMPT
 
 # vLLM structured output: forces valid JSON with exactly these keys

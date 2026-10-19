@@ -4,6 +4,7 @@
 /api/status を ready にする。UI はそれまで起動画面を表示する。
 
 POST /api/process (body: audio/wav) は NDJSON で次のイベントを流す (ui/assets/api-processor.js が受信):
+  ?lang=en|fr|zh|de|ru で翻訳先を選ぶ (config.PROMPTS / config.TTS_LANGUAGES)
   {"type": "transcript"|"translation", "text": <その時点の全文>, "done": bool}  ← Omni の生成トークンごと
   {"type": "status", "message": ...}
   {"type": "audio", "url": "/api/audio/<session>/translation.wav"}
@@ -213,8 +214,11 @@ def speech_seconds(audio, sr: int) -> float:
 
 # ---------------------------------------------------------------- pipeline
 
-async def process_stream(session: Path):
-    """session/customer.wav → Omni (トークンごとにイベント) → TTS。イベント dict を yield する。"""
+async def process_stream(session: Path, lang: str = "en"):
+    """session/customer.wav → Omni (トークンごとにイベント) → TTS。イベント dict を yield する。
+
+    lang: 翻訳先 (config.PROMPTS のキー)。プロンプトと TTS の language を切り替える。
+    """
     wav = session / "customer.wav"
     t0 = time.time()
     audio_b64 = await asyncio.to_thread(pipeline._wav_16k_b64, wav)
@@ -222,7 +226,7 @@ async def process_stream(session: Path):
         "model": config.VLLM_MODEL_NAME,
         "messages": [{"role": "user", "content": [
             {"type": "audio_url", "audio_url": {"url": "data:audio/wav;base64," + audio_b64}},
-            {"type": "text", "text": config.PROMPT},
+            {"type": "text", "text": config.PROMPTS[lang]},
         ]}],
         "response_format": config.RESPONSE_FORMAT,
         "temperature": 0.0,
@@ -266,15 +270,16 @@ async def process_stream(session: Path):
     (session / "transcription.txt").write_text(ja, encoding="utf-8")
     (session / "translation.txt").write_text(en, encoding="utf-8")
 
-    yield {"type": "status", "message": "あなたの声で英語音声を生成しています"}
+    yield {"type": "status", "message": "あなたの声で音声を生成しています"}
     async with httpx.AsyncClient(timeout=600) as client:
         r = await client.post(f"{config.TTS_BASE_URL}/audio/speech", json={
             "model": config.TTS_MODEL_NAME,
             "input": en,
             "task_type": "Base",
-            "language": "English",
+            "language": config.TTS_LANGUAGES[lang],
             "ref_audio": "data:audio/wav;base64," + base64.b64encode(wav.read_bytes()).decode(),
-            "ref_text": ja,
+            # 中国語などは参照の書き起こしを使わず声の特徴だけで (config.TTS_XVECTOR_ONLY)
+            **({"x_vector_only_mode": True} if lang in config.TTS_XVECTOR_ONLY else {"ref_text": ja}),
             "response_format": "wav",
         })
     if r.status_code != 200:
@@ -312,6 +317,9 @@ async def status():
 async def process(request: Request):
     if STATE["phase"] != "ready":
         raise HTTPException(503, "モデルの準備中です")
+    lang = request.query_params.get("lang", "en")
+    if lang not in config.PROMPTS:
+        raise HTTPException(400, f"対応していない言語です: {lang}")
     data = await request.body()
     try:
         audio, sr = sf.read(io.BytesIO(data), dtype="float32")
@@ -329,7 +337,7 @@ async def process(request: Request):
     async def events():
         async with _lock:  # GPU は 1 組のモデルを共有するので 1 件ずつ処理する
             try:
-                async for ev in process_stream(session):
+                async for ev in process_stream(session, lang):
                     yield json.dumps(ev, ensure_ascii=False) + "\n"
             except Exception as e:  # noqa: BLE001
                 yield json.dumps({"type": "error", "message": str(e)}, ensure_ascii=False) + "\n"
